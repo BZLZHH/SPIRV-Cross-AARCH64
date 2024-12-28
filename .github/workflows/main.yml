@@ -1,6 +1,3 @@
-# Copyright 2020-2021 The Khronos Group, Inc.
-# SPDX-License-Identifier: Apache-2.0
-
 name: CI
 
 on:
@@ -14,7 +11,7 @@ jobs:
     name: "Build ${{ matrix.platform }}"
     strategy:
       matrix:
-        platform: [windows-latest, ubuntu-20.04, ubuntu-22.04, macos-latest]
+        platform: [windows-latest, ubuntu-20.04, ubuntu-22.04, macos-latest, aarch64-linux]  # Add aarch64-linux
     env:
       PARALLEL: -j 2
 
@@ -45,12 +42,14 @@ jobs:
         working-directory: ${{github.workspace}}
         run: ./build_glslang_spirv_tools.sh Release 4
 
-      - name: Configure SPIRV-Cross
+      - name: Configure SPIRV-Cross for aarch64
         shell: bash
         run: |
           mkdir build
           cd build
-          cmake .. -DSPIRV_CROSS_WERROR=ON -DSPIRV_CROSS_MISC_WARNINGS=ON -DSPIRV_CROSS_SHARED=ON -DCMAKE_INSTALL_PREFIX=output -DCMAKE_BUILD_TYPE=Release -DSPIRV_CROSS_ENABLE_TESTS=ON -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" -DCMAKE_OSX_DEPLOYMENT_TARGET=10.15
+          # Here we are assuming the use of an appropriate cross-compilation toolchain
+          # You might need to set up a cross-compilation toolchain file if needed for aarch64
+          cmake .. -DSPIRV_CROSS_WERROR=ON -DSPIRV_CROSS_MISC_WARNINGS=ON -DSPIRV_CROSS_SHARED=ON -DCMAKE_INSTALL_PREFIX=output -DCMAKE_BUILD_TYPE=Release -DSPIRV_CROSS_ENABLE_TESTS=ON -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=aarch64 -DCMAKE_C_COMPILER=/usr/bin/aarch64-linux-gnu-gcc -DCMAKE_CXX_COMPILER=/usr/bin/aarch64-linux-gnu-g++ 
 
       - name: Build SPIRV-Cross
         shell: bash
@@ -69,7 +68,6 @@ jobs:
         run: ctest --verbose -C Release
 
   build-mobile:
-    # iOS is 10x expensive to run on GitHub machines, so only run if we know something else passed as well
     needs: build
     name: "Build ${{ matrix.sdk }}"
     strategy:
@@ -87,6 +85,9 @@ jobs:
           - platform: tvOS
             sdk: appletvsimulator
             architectures: x86_64;arm64
+          - platform: aarch64-linux  # Add ARM64 Linux for mobile platforms
+            sdk: linux
+            architectures: aarch64
     env:
       PARALLEL: -j 2
 
@@ -117,12 +118,12 @@ jobs:
         working-directory: ${{github.workspace}}
         run: ./build_glslang_spirv_tools.sh Release 4
 
-      - name: Configure SPIRV-Cross
+      - name: Configure SPIRV-Cross for aarch64-linux
         shell: bash
         run: |
           mkdir build
           cd build
-          cmake .. -DSPIRV_CROSS_WERROR=ON -DSPIRV_CROSS_MISC_WARNINGS=ON -DSPIRV_CROSS_SHARED=ON -DCMAKE_INSTALL_PREFIX=output -DCMAKE_BUILD_TYPE=Release -DSPIRV_CROSS_ENABLE_TESTS=ON -DCMAKE_SYSTEM_NAME=${{ matrix.platform }} -DCMAKE_OSX_ARCHITECTURES="${{ matrix.architectures }}" -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 -DCMAKE_OSX_SYSROOT=`xcodebuild -version -sdk ${{ matrix.sdk }} Path` -DBUILD_SHARED_LIBS=OFF
+          cmake .. -DSPIRV_CROSS_WERROR=ON -DSPIRV_CROSS_MISC_WARNINGS=ON -DSPIRV_CROSS_SHARED=ON -DCMAKE_INSTALL_PREFIX=output -DCMAKE_BUILD_TYPE=Release -DSPIRV_CROSS_ENABLE_TESTS=ON -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=aarch64
 
       - name: Build SPIRV-Cross
         shell: bash
@@ -148,5 +149,3 @@ jobs:
       - name: license-check
         run: |
           reuse lint
-
-
